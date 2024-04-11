@@ -1,0 +1,125 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <map>
+
+// Definir una estructura para almacenar las traducciones
+struct Translation {
+    std::string italian;
+    std::string french;
+    std::string german;
+    std::string english;
+    // Puedes agregar más idiomas según sea necesario
+};
+
+// Definir una clase para manejar el árbol de palabras y traducciones
+class TranslationTree {
+private:
+    std::map<std::string, Translation> translations;
+
+public:
+    // Función para insertar una palabra y su traducción
+    void insert(const std::string& word, const Translation& translation) {
+        translations[word] = translation;
+    }
+
+    // Función para buscar una palabra y obtener su traducción
+    Translation* translate(const std::string& word) {
+        auto it = translations.find(word);
+        if (it != translations.end()) {
+            return &it->second;
+        }
+        return nullptr;
+    }
+
+    // Función para obtener el iterador al inicio del mapa
+    auto begin() -> decltype(translations.begin()) {
+        return translations.begin();
+    }
+
+    // Función para obtener el iterador al final del mapa
+    auto end() -> decltype(translations.end()) {
+        return translations.end();
+    }
+};
+
+int main() {
+    TranslationTree translationTree;
+
+    // Cargar datos desde un archivo si existe
+    std::ifstream file("translations.txt");
+    if (file.is_open()) {
+        std::string word;
+        Translation translation;
+        while (file >> word >> translation.italian >> translation.french >> translation.german >> translation.english) {
+            translationTree.insert(word, translation);
+        }
+        file.close();
+    }
+
+    std::cout << "Bienvenido al traductor multilingue!" << std::endl;
+
+    int choice;
+    std::string word;
+    while (true) {
+        std::cout << "Seleccione una opcion:" << std::endl;
+        std::cout << "1. Traducir una palabra" << std::endl;
+        std::cout << "2. Agregar una nueva palabra y traduccion" << std::endl;
+        std::cout << "3. Salir" << std::endl;
+        std::cin >> choice;
+
+        switch (choice) {
+            case 1:
+                std::cout << "Ingrese la palabra a traducir: ";
+                std::cin >> word;
+                {
+                    Translation* translation = translationTree.translate(word);
+                    if (translation != nullptr) {
+                        std::cout << "Traduccion:" << std::endl;
+                        std::cout << "Italiano: " << translation->italian << std::endl;
+                        std::cout << "Frances: " << translation->french << std::endl;
+                        std::cout << "Aleman: " << translation->german << std::endl;
+                        std::cout << "Ingles: " << translation->english << std::endl;
+                    } else {
+                        std::cout << "La palabra no está en el diccionario." << std::endl;
+                    }
+                }
+                break;
+            case 2:
+                std::cout << "Ingrese la palabra: ";
+                std::cin >> word;
+                {
+                    Translation translation;
+                    std::cout << "Ingrese la traducción en italiano: ";
+                    std::cin >> translation.italian;
+                    std::cout << "Ingrese la traducción en francés: ";
+                    std::cin >> translation.french;
+                    std::cout << "Ingrese la traducción en alemán: ";
+                    std::cin >> translation.german;
+                    std::cout << "Ingrese la traducción en inglés: ";
+                    std::cin >> translation.english;
+
+                    translationTree.insert(word, translation);
+                    std::cout << "Palabra y traducciones agregadas exitosamente." << std::endl;
+                }
+                break;
+            case 3:
+                // Guardar datos en un archivo antes de salir
+                {
+                    std::ofstream outFile("translations.txt");
+                    for (const auto& entry : translationTree) {
+                        outFile << entry.first << " " << entry.second.italian << " " << entry.second.french
+                                << " " << entry.second.german << " " << entry.second.english << std::endl;
+                    }
+                    outFile.close();
+                }
+                std::cout << "Gracias por usar el traductor multilingüe. ¡Hasta luego!" << std::endl;
+                return 0;
+            default:
+                std::cout << "Opción inválida. Por favor, seleccione una opción válida." << std::endl;
+                break;
+        }
+    }
+
+    return 0;
+}
