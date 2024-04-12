@@ -4,6 +4,12 @@
 #include <map>
 #include <cstdlib>
 
+#ifdef _WIN32
+#define CLEAR_SCREEN "cls"
+#else
+#define CLEAR_SCREEN "clear"
+#endif
+
 struct Translation {
     std::string italian;
     std::string french;
@@ -64,6 +70,7 @@ int main() {
     int choice;
     std::string word;
     while (true) {
+        system(CLEAR_SCREEN);
         std::cout << "Seleccione una opcion:" << std::endl;
         std::cout << "1. Traducir una palabra" << std::endl;
         std::cout << "2. Agregar una nueva palabra y traducción" << std::endl;
@@ -159,6 +166,9 @@ int main() {
                 std::cout << "Opción inválida. Por favor, seleccione una opción válida." << std::endl;
                 break;
         }
+        std::cout << "Presione Enter para continuar...";
+        std::cin.ignore();
+        std::cin.get();
     }
 
     return 0;
