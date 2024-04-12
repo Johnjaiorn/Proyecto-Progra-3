@@ -1,0 +1,155 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <map>
+
+struct Translation {
+    std::string italian;
+    std::string french;
+    std::string german;
+    std::string english;
+};
+
+class TranslationTree {
+private:
+    std::map<std::string, Translation> translations;
+
+public:
+    void insert(const std::string& word, const Translation& translation) {
+        translations[word] = translation;
+    }
+
+    Translation* translate(const std::string& word) {
+        auto it = translations.find(word);
+        if (it != translations.end()) {
+            return &it->second;
+        }
+        return nullptr;
+    }
+
+    auto begin() -> decltype(translations.begin()) {
+        return translations.begin();
+    }
+
+    auto end() -> decltype(translations.end()) {
+        return translations.end();
+    }
+
+    void remove(const std::string& word) {
+        translations.erase(word);
+    }
+};
+
+int main() {
+    TranslationTree translationTree;
+
+    std::ifstream file("translations.txt");
+    if (file.is_open()) {
+        std::string word;
+        Translation translation;
+        while (file >> word >> translation.italian >> translation.french >> translation.german >> translation.english) {
+            translationTree.insert(word, translation);
+        }
+        file.close();
+    }
+
+    std::cout << "Bienvenido al traductor multilingue!" << std::endl;
+
+    int choice;
+    std::string word;
+    while (true) {
+        std::cout << "Seleccione una opcion:" << std::endl;
+        std::cout << "1. Traducir una palabra" << std::endl;
+        std::cout << "2. Agregar una nueva palabra y traducción" << std::endl;
+        std::cout << "3. Corregir una traducción" << std::endl;
+        std::cout << "4. Borrar una traducción" << std::endl;
+        std::cout << "5. Salir" << std::endl;
+        std::cin >> choice;
+
+        switch (choice) {
+            case 1:
+                std::cout << "Ingrese la palabra a traducir: ";
+                std::cin >> word;
+                {
+                    Translation* translation = translationTree.translate(word);
+                    if (translation != nullptr) {
+                        std::cout << "Traduccion:" << std::endl;
+                        std::cout << "Italiano: " << translation->italian << std::endl;
+                        std::cout << "Frances: " << translation->french << std::endl;
+                        std::cout << "Aleman: " << translation->german << std::endl;
+                        std::cout << "Ingles: " << translation->english << std::endl;
+                    } else {
+                        std::cout << "La palabra no está en el diccionario." << std::endl;
+                    }
+                }
+                break;
+            case 2:
+                std::cout << "Ingrese la palabra: ";
+                std::cin >> word;
+                {
+                    Translation translation;
+                    std::cout << "Ingrese la traducción en italiano: ";
+                    std::cin >> translation.italian;
+                    std::cout << "Ingrese la traducción en frances: ";
+                    std::cin >> translation.french;
+                    std::cout << "Ingrese la traducción en aleman: ";
+                    std::cin >> translation.german;
+                    std::cout << "Ingrese la traducción en ingles: ";
+                    std::cin >> translation.english;
+
+                    translationTree.insert(word, translation);
+                    std::cout << "Palabra y traducciones agregadas exitosamente." << std::endl;
+                }
+                break;
+            case 3:
+                std::cout << "Ingrese la palabra a corregir: ";
+                std::cin >> word;
+                {
+                    Translation* translation = translationTree.translate(word);
+                    if (translation != nullptr) {
+                        std::cout << "Traducción actual: " << std::endl;
+                        std::cout << "Italiano: " << translation->italian << std::endl;
+                        std::cout << "Frances: " << translation->french << std::endl;
+                        std::cout << "Aleman: " << translation->german << std::endl;
+                        std::cout << "Ingles: " << translation->english << std::endl;
+
+                        std::cout << "Ingrese la nueva traduccion en italiano: ";
+                        std::cin >> translation->italian;
+                        std::cout << "Ingrese la nueva traduccion en francés: ";
+                        std::cin >> translation->french;
+                        std::cout << "Ingrese la nueva traduccion en alemán: ";
+                        std::cin >> translation->german;
+                        std::cout << "Ingrese la nueva traduccion en inglés: ";
+                        std::cin >> translation->english;
+
+                        std::cout << "Traduccion corregida exitosamente." << std::endl;
+                    } else {
+                        std::cout << "La palabra no está en el diccionario." << std::endl;
+                    }
+                }
+                break;
+            case 4:
+                std::cout << "Ingrese la palabra a borrar: ";
+                std::cin >> word;
+                translationTree.remove(word);
+                std::cout << "Traducción borrada exitosamente." << std::endl;
+                break;
+            case 5:
+                {
+                    std::ofstream outFile("translations.txt");
+                    for (const auto& entry : translationTree) {
+                        outFile << entry.first << " " << entry.second.italian << " " << entry.second.french
+                                << " " << entry.second.german << " " << entry.second.english << std::endl;
+                    }
+                    outFile.close();
+                }
+                std::cout << "Gracias por usar el traductor multilingüe. ¡Hasta luego!" << std::endl;
+                return 0;
+            default:
+                std::cout << "Opción inválida. Por favor, seleccione una opción válida." << std::endl;
+                break;
+        }
+    }
+
+    return 0;
+}
