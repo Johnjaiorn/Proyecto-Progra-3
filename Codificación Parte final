@@ -1,0 +1,465 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <cstdlib>
+#include <algorithm>
+#include <map>
+#include <sstream>
+#include <vector>
+
+#ifdef _WIN32
+#define LIMPIAR_PANTALLA "cls"
+#else
+#define LIMPIAR_PANTALLA "clear"
+#endif
+
+struct Traduccion {
+    std::string italiano;
+    std::string frances;
+    std::string aleman;
+    std::string ingles;
+};
+
+void actualizarArchivoDeTraducciones(const std::string& palabra, const Traduccion* traduccion);
+
+struct NodoAVL {
+    std::string palabra;
+    Traduccion traduccion;
+    int altura;
+    NodoAVL* izquierda;
+    NodoAVL* derecha;
+};
+
+class ArbolAVL {
+private:
+    NodoAVL* raiz;
+
+    int altura(NodoAVL* nodo) {
+        if (nodo == nullptr) return 0;
+        return nodo->altura;
+    }
+
+    int factorBalance(NodoAVL* nodo) {
+        if (nodo == nullptr) return 0;
+        return altura(nodo->izquierda) - altura(nodo->derecha);
+    }
+
+    NodoAVL* rotarDerecha(NodoAVL* y) {
+        NodoAVL* x = y->izquierda;
+        NodoAVL* T2 = x->derecha;
+
+        x->derecha = y;
+        y->izquierda = T2;
+
+        y->altura = std::max(altura(y->izquierda), altura(y->derecha)) + 1;
+        x->altura = std::max(altura(x->izquierda), altura(x->derecha)) + 1;
+
+        return x;
+    }
+
+    NodoAVL* rotarIzquierda(NodoAVL* x) {
+        NodoAVL* y = x->derecha;
+        NodoAVL* T2 = y->izquierda;
+
+        y->izquierda = x;
+        x->derecha = T2;
+
+        x->altura = std::max(altura(x->izquierda), altura(x->derecha)) + 1;
+        y->altura = std::max(altura(y->izquierda), altura(y->derecha)) + 1;
+
+        return y;
+    }
+
+    NodoAVL* insertarNodo(NodoAVL* nodo, const std::string& palabra, const Traduccion& traduccion) {
+        if (nodo == nullptr) {
+            NodoAVL* nuevoNodo = new NodoAVL;
+            nuevoNodo->palabra = palabra;
+            nuevoNodo->traduccion = traduccion;
+            nuevoNodo->altura = 1;
+            nuevoNodo->izquierda = nullptr;
+            nuevoNodo->derecha = nullptr;
+            return nuevoNodo;
+        }
+
+        if (palabra < nodo->palabra) {
+            nodo->izquierda = insertarNodo(nodo->izquierda, palabra, traduccion);
+        } else if (palabra > nodo->palabra) {
+            nodo->derecha = insertarNodo(nodo->derecha, palabra, traduccion);
+        } else {
+            // La palabra ya existe, actualiza la traducción si es necesario
+            nodo->traduccion = traduccion;
+            return nodo;
+        }
+
+        nodo->altura = std::max(altura(nodo->izquierda), altura(nodo->derecha)) + 1;
+
+        int balance = factorBalance(nodo);
+
+        // Caso de Rotación Izquierda Izquierda
+        if (balance > 1 && palabra < nodo->izquierda->palabra)
+            return rotarDerecha(nodo);
+
+        // Caso de Rotación Derecha Derecha
+        if (balance < -1 && palabra > nodo->derecha->palabra)
+            return rotarIzquierda(nodo);
+
+        // Caso de Rotación Izquierda Derecha
+        if (balance > 1 && palabra > nodo->izquierda->palabra) {
+            nodo->izquierda = rotarIzquierda(nodo->izquierda);
+            return rotarDerecha(nodo);
+        }
+
+        // Caso de Rotación Derecha Izquierda
+        if (balance < -1 && palabra < nodo->derecha->palabra) {
+            nodo->derecha = rotarDerecha(nodo->derecha);
+            return rotarIzquierda(nodo);
+        }
+
+        return nodo;
+    }
+
+    NodoAVL* nodoValorMinimo(NodoAVL* nodo) {
+        NodoAVL* actual = nodo;
+        while (actual->izquierda != nullptr) {
+            actual = actual->izquierda;
+        }
+        return actual;
+    }
+
+    NodoAVL* eliminarNodo(NodoAVL* raiz, const std::string& palabra) {
+        if (raiz == nullptr) return raiz;
+
+        if (palabra < raiz->palabra)
+            raiz->izquierda = eliminarNodo(raiz->izquierda, palabra);
+        else if (palabra > raiz->palabra)
+            raiz->derecha = eliminarNodo(raiz->derecha, palabra);
+        else {
+            if (raiz->izquierda == nullptr || raiz->derecha == nullptr) {
+                NodoAVL* temp = raiz->izquierda ? raiz->izquierda : raiz->derecha;
+
+                if (temp == nullptr) {
+                    temp = raiz;
+                    raiz = nullptr;
+                } else {
+                    *raiz = *temp;
+                }
+                delete temp;
+            } else {
+                NodoAVL* temp = nodoValorMinimo(raiz->derecha);
+                raiz->palabra = temp->palabra;
+                raiz->traduccion = temp->traduccion;
+                raiz->derecha = eliminarNodo(raiz->derecha, temp->palabra);
+            }
+        }
+
+        if (raiz == nullptr) return raiz;
+
+        raiz->altura = 1 + std::max(altura(raiz->izquierda), altura(raiz->derecha));
+
+        int balance = factorBalance(raiz);
+
+        if (balance > 1 && factorBalance(raiz->izquierda) >= 0)
+            return rotarDerecha(raiz);
+
+        if (balance > 1 && factorBalance(raiz->izquierda) < 0) {
+            raiz->izquierda = rotarIzquierda(raiz->izquierda);
+            return rotarDerecha(raiz);
+        }
+
+        if (balance < -1 && factorBalance(raiz->derecha) <= 0)
+            return rotarIzquierda(raiz);
+
+        if (balance < -1 && factorBalance(raiz->derecha) > 0) {
+            raiz->derecha = rotarDerecha(raiz->derecha);
+            return rotarIzquierda(raiz);
+        }
+
+        // Actualizar el archivo de traducciones después de eliminar el nodo
+        actualizarArchivoDeTraducciones(palabra, nullptr);
+
+        return raiz;
+    }
+
+    Traduccion* buscarNodo(NodoAVL* raiz, const std::string& palabra) {
+        if (raiz == nullptr) return nullptr;
+        if (palabra == raiz->palabra) return &raiz->traduccion;
+        if (palabra < raiz->palabra) return buscarNodo(raiz->izquierda, palabra);
+        return buscarNodo(raiz->derecha, palabra);
+    }
+
+public:
+    ArbolAVL() : raiz(nullptr) {}
+
+    void insertar(const std::string& palabra, const Traduccion& traduccion) {
+        raiz = insertarNodo(raiz, palabra, traduccion);
+    }
+
+    void eliminar(const std::string& palabra) {
+        raiz = eliminarNodo(raiz, palabra);
+    }
+
+    Traduccion* buscar(const std::string& palabra) {
+        return buscarNodo(raiz, palabra);
+    }
+};
+
+void hablar(const std::string& texto) {
+    std::string comando = "espeak \"" + texto + "\"";
+    system(comando.c_str());
+}
+
+std::string encriptarPalabra(const std::string& palabra) {
+    std::string palabraEncriptada;
+    for (char c : palabra) {
+        switch (c) {
+            case 'a': palabraEncriptada += "U1"; break;
+            case 'e': palabraEncriptada += "U2"; break;
+            case 'i': palabraEncriptada += "U3"; break;
+            case 'o': palabraEncriptada += "U4"; break;
+            case 'u': palabraEncriptada += "U5"; break;
+            case 'A': palabraEncriptada += "U6"; break;
+            case 'E': palabraEncriptada += "U7"; break;
+            case 'I': palabraEncriptada += "U8"; break;
+            case 'O': palabraEncriptada += "U9"; break;
+            case 'U': palabraEncriptada += "U10"; break;
+            case 'b': palabraEncriptada += "m1"; break;
+            case 'c': palabraEncriptada += "m2"; break;
+            case 'd': palabraEncriptada += "m3"; break;
+            case 'f': palabraEncriptada += "m4"; break;
+            case 'g': palabraEncriptada += "m5"; break;
+            case 'h': palabraEncriptada += "m6"; break;
+            case 'j': palabraEncriptada += "m7"; break;
+            case 'k': palabraEncriptada += "m8"; break;
+            case 'l': palabraEncriptada += "m9"; break;
+            case 'm': palabraEncriptada += "m10"; break;
+            case 'n': palabraEncriptada += "m11"; break;
+            case 'ñ': palabraEncriptada += "m12"; break;
+            case 'p': palabraEncriptada += "m13"; break;
+            case 'q': palabraEncriptada += "m14"; break;
+            case 'r': palabraEncriptada += "m15"; break;
+            case 's': palabraEncriptada += "m16"; break;
+            case 't': palabraEncriptada += "m17"; break;
+            case 'v': palabraEncriptada += "m18"; break;
+            case 'w': palabraEncriptada += "m19"; break;
+            case 'x': palabraEncriptada += "m20"; break;
+            case 'y': palabraEncriptada += "m21"; break;
+            case 'z': palabraEncriptada += "m22"; break;
+            case 'B': palabraEncriptada += "g1"; break;
+            case 'C': palabraEncriptada += "g2"; break;
+            case 'D': palabraEncriptada += "g3"; break;
+            case 'F': palabraEncriptada += "g4"; break;
+            case 'G': palabraEncriptada += "g5"; break;
+            case 'H': palabraEncriptada += "g6"; break;
+            case 'J': palabraEncriptada += "g7"; break;
+            case 'K': palabraEncriptada += "g8"; break;
+            case 'L': palabraEncriptada += "g9"; break;
+            case 'M': palabraEncriptada += "g10"; break;
+            case 'N': palabraEncriptada += "g11"; break;
+            case 'Ñ': palabraEncriptada += "g12"; break;
+            case 'P': palabraEncriptada += "g13"; break;
+            case 'Q': palabraEncriptada += "g14"; break;
+            case 'R': palabraEncriptada += "g15"; break;
+            case 'S': palabraEncriptada += "g16"; break;
+            case 'T': palabraEncriptada += "g17"; break;
+            case 'V': palabraEncriptada += "g18"; break;
+            case 'W': palabraEncriptada += "g19"; break;
+            case 'X': palabraEncriptada += "g20"; break;
+            case 'Y': palabraEncriptada += "g21"; break;
+            case 'Z': palabraEncriptada += "g22"; break;
+            default: palabraEncriptada += c; break;
+        }
+    }
+    return palabraEncriptada;
+}
+
+void actualizarArchivoDeTraducciones(const std::string& palabra, const Traduccion* traduccion) {
+    std::ifstream archivoEntrada("traducciones.txt");
+    std::ofstream archivoTemporal("temporal.txt");
+
+    if (archivoEntrada.is_open() && archivoTemporal.is_open()) {
+        std::string linea;
+        while (std::getline(archivoEntrada, linea)) {
+            std::vector<std::string> tokens;
+            std::istringstream iss(linea);
+            std::string token;
+            while (iss >> token) {
+                tokens.push_back(token);
+            }
+            if (!tokens.empty() && tokens[0] == palabra) {
+                // Si encontramos la palabra y hay una traducción válida, escribimos la línea con la traducción actualizada
+                if (traduccion != nullptr) {
+                    archivoTemporal << palabra << " " << traduccion->italiano << " " << traduccion->frances << " " << traduccion->aleman << " " << traduccion->ingles << std::endl;
+                }
+            } else {
+                // En caso contrario, escribimos la línea tal como está en el archivo original
+                archivoTemporal << linea << std::endl;
+            }
+        }
+        archivoEntrada.close();
+        archivoTemporal.close();
+        remove("traducciones.txt");
+        rename("temporal.txt", "traducciones.txt");
+    } else {
+        std::cerr << "Error: No se pudo abrir el archivo traducciones.txt para escribir." << std::endl;
+    }
+}
+
+int main() {
+    ArbolAVL arbolDeTraducciones;
+    std::map<std::string, int> historialBusqueda;
+
+    std::ifstream archivo("traducciones.txt");
+    if (archivo.is_open()) {
+        std::string palabra;
+        Traduccion traduccion;
+        while (archivo >> palabra >> traduccion.italiano >> traduccion.frances >> traduccion.aleman >> traduccion.ingles) {
+            arbolDeTraducciones.insertar(palabra, traduccion);
+        }
+        archivo.close();
+    }
+
+    std::cout << "¡Bienvenido al traductor multilingüe!" << std::endl;
+
+    int opcion;
+    std::string palabra;
+    while (true) {
+        system(LIMPIAR_PANTALLA);
+        std::cout << "Seleccione una opción:" << std::endl;
+        std::cout << "1. Traducir una palabra" << std::endl;
+        std::cout << "2. Agregar una nueva palabra y traducción" << std::endl;
+        std::cout << "3. Corregir una traducción" << std::endl;
+        std::cout << "4. Borrar una traducción" << std::endl;
+        std::cout << "5. Mostrar historial de búsqueda" << std::endl;
+        std::cout << "6. Salir" << std::endl;
+        std::cin >> opcion;
+
+        switch (opcion) {
+            case 1:
+                std::cout << "Ingrese la palabra a traducir: ";
+                std::cin >> palabra;
+                {
+                    Traduccion* traduccion = arbolDeTraducciones.buscar(palabra);
+                    if (traduccion != nullptr) {
+                        std::cout << "Traducción:" << std::endl;
+                        std::cout << "Italiano: " << traduccion->italiano << std::endl;
+                        std::cout << "Francés: " << traduccion->frances << std::endl;
+                        std::cout << "Alemán: " << traduccion->aleman << std::endl;
+                        std::cout << "Inglés: " << traduccion->ingles << std::endl;
+                        hablar(traduccion->italiano);
+                        hablar(traduccion->frances);
+                        hablar(traduccion->aleman);
+                        hablar(traduccion->ingles);
+
+                        // Guardar la palabra encriptada en el historial
+                        std::string palabraEncriptada = encriptarPalabra(palabra);
+                        historialBusqueda[palabra]++;
+
+                        // Guardar el historial en el archivo
+                        std::ofstream archivoHistorial("historial_busqueda.txt", std::ios::app);
+                        archivoHistorial << palabraEncriptada << std::endl;
+                        archivoHistorial.close();
+                    } else {
+                        std::cout << "La palabra no está en el diccionario." << std::endl;
+                    }
+                }
+                break;
+            case 2:
+                std::cout << "Ingrese la palabra: ";
+                std::cin >> palabra;
+                {
+                    Traduccion traduccion;
+                    std::cout << "Ingrese la traducción en italiano: ";
+                    std::cin >> traduccion.italiano;
+                    std::cout << "Ingrese la traducción en francés: ";
+                    std::cin >> traduccion.frances;
+                    std::cout << "Ingrese la traducción en alemán: ";
+                    std::cin >> traduccion.aleman;
+                    std::cout << "Ingrese la traducción en inglés: ";
+                    std::cin >> traduccion.ingles;
+
+                    arbolDeTraducciones.insertar(palabra, traduccion);
+                    std::cout << "Palabra y traducciones agregadas exitosamente." << std::endl;
+                    // Abrir el archivo en modo de escritura y agregar la nueva palabra y traducciones al final del archivo
+                    std::ofstream archivoSalida("traducciones.txt", std::ios::app);
+                    if (archivoSalida.is_open()) {
+                        archivoSalida << palabra << " " << traduccion.italiano << " " << traduccion.frances << " " << traduccion.aleman << " " << traduccion.ingles << std::endl;
+                        archivoSalida.close();
+                    } else {
+                        std::cerr << "Error: No se pudo abrir el archivo traducciones.txt para escribir." << std::endl;
+                    }
+                }
+                break;
+            case 3:
+                std::cout << "Ingrese la palabra a corregir: ";
+                std::cin >> palabra;
+                {
+                    Traduccion* traduccion = arbolDeTraducciones.buscar(palabra);
+                    if (traduccion != nullptr) {
+                        std::cout << "Traducción actual: " << std::endl;
+                        std::cout << "Italiano: " << traduccion->italiano << std::endl;
+                        std::cout << "Francés: " << traduccion->frances << std::endl;
+                        std::cout << "Alemán: " << traduccion->aleman << std::endl;
+                        std::cout << "Inglés: " << traduccion->ingles << std::endl;
+
+                        std::cout << "Ingrese la nueva traducción en italiano: ";
+                        std::cin >> traduccion->italiano;
+                        std::cout << "Ingrese la nueva traducción en francés: ";
+                        std::cin >> traduccion->frances;
+                        std::cout << "Ingrese la nueva traducción en alemán: ";
+                        std::cin >> traduccion->aleman;
+                        std::cout << "Ingrese la nueva traducción en inglés: ";
+                        std::cin >> traduccion->ingles;
+
+                        std::cout << "Traducción corregida exitosamente." << std::endl;
+
+                        // Actualizar el archivo de traducciones con la corrección
+                        actualizarArchivoDeTraducciones(palabra, traduccion);
+                    } else {
+                        std::cout << "La palabra no está en el diccionario." << std::endl;
+                    }
+                }
+                break;
+            case 4:
+    std::cout << "Ingrese la palabra a borrar: ";
+    std::cin >> palabra;
+    {
+        Traduccion* traduccion = arbolDeTraducciones.buscar(palabra);
+        if (traduccion != nullptr) {
+            arbolDeTraducciones.eliminar(palabra);
+            std::cout << "Traducción borrada exitosamente." << std::endl;
+            actualizarArchivoDeTraducciones(palabra, nullptr); // Actualizar el archivo de traducciones
+        } else {
+            std::cout << "La palabra no está en el diccionario." << std::endl;
+        }
+    }
+    break;
+            case 5:
+                {
+                    if (historialBusqueda.empty()) {
+                        std::cout << "El historial de búsqueda está vacío." << std::endl;
+                    } else {
+                        std::cout << "Historial de búsqueda:" << std::endl;
+                        for (const auto& entrada : historialBusqueda) {
+                            std::cout << entrada.first << ": " << entrada.second << " veces" << std::endl;
+                        }
+                    }
+                }
+                break;
+            case 6:
+                {
+                    std::cout << "¡Gracias por usar el traductor multilingüe! ¡Hasta luego!" << std::endl;
+                    return 0;
+                }
+                break;
+            default:
+                std::cout << "Opción no válida. Por favor, seleccione una opción válida." << std::endl;
+                break;
+        }
+
+        std::cout << "Presione Enter para continuar...";
+        std::cin.ignore();
+        std::cin.get();
+    }
+
+    return 0;
+}
